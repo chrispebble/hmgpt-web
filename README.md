@@ -6,6 +6,41 @@ Web version of the HMGPT project.
 
 Currently there are only two cases: a simple uncomplicated URI, and a URI in a patient with type 2 diabetes.
 
+Interact with the patient as you would a normal patient.  When you think you are done with the scenario, hit __Grade__ to be evaluated!  If you want to skip the scenario, hit __New Conversation__.
+
+The number and case id are displayed currently - that is just for debugging purposes.
+
+### Things to try
+Start out basic:
+* How can I help you today?
+* What are your symptoms today?
+* How long have you had these symptoms?
+* What are your vitals?
+
+Maybe some ROS type questions:
+* Have you ever had these symptoms before?
+* Do you have any shortness of breath?
+* Have you been having trouble swallowing?
+
+Get into medical history:
+* Do you have any medical conditions?
+* Do you take any medications?
+* Is it possible you are pregnant?
+* Do you have any allergies?
+* Do you have any allergies to medications?
+* Have you ever experienced these symptoms before?
+
+Tell the patient what you think
+* Your symptoms are consistent with a common cold.
+* You should stay home and rest, drink plenty of fluids.
+* You can take over the counter medications such as Tylenol for your symptoms.
+
+Finish it up
+* You do not need to see a medical provider today, but if your symptoms do not improve in 2-3 days then you should come back.
+* You need to see a medical provider today.
+* Do you have any questions?
+
+
 ## Create Cases
 Cases can be created by modifying the `patient-beta.yaml` file.  Below is an example case, with comments explaining each variable.
 

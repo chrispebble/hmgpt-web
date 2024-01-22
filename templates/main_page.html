@@ -1,0 +1,76 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+        <title>HM GPT</title>
+    </head>
+
+    <body>
+        <nav class="navbar navbar-inverse">
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#">HM GPT</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+
+            <h3>{{ patient_intro }}</h3>
+
+            {% for line in chatlog %}
+                <div class="row">
+                    {% if line.line_type == "assistant" %}
+                        <strong>{{ line.line_content }}</strong>
+                    {% else %}
+                        <em>{{ line.line_content }}</em>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <br/>
+
+            <div class="row">
+                <form action="." method="POST">
+                    <textarea name="user_input" id="user_input" placeholder="What do you say next?" class="form-control" type=submit></textarea>
+                    <br/>
+                    <!--<input type="submit" class="btn btn-success" value="Send">-->
+                    <input type="submit" name="action" value="Send" class="btn btn-primary" id="default_button">
+                    <input type="submit" name="action" value="Grade" class="btn btn-warning">
+                    <input type="submit" name="action" value="New Conversation" class="btn btn-danger">
+
+                    <!-- These allow requests to carry forward information about the session -->
+                    <input type="number" name="session_id" value="{{ session_id }}" />
+                    <input type="text" name="patient_id" value="{{ patient_id }}" />
+                </form>
+            </div>
+
+        </div><!-- /.container -->
+
+        <script>
+            // pressing enter in textarea submits the page
+            document.getElementById('user_input').addEventListener('keydown', function(event) {
+                const enterKey = 13;
+                if (event.keyCode === enterKey && !event.shiftKey) {
+                    event.preventDefault(); // Prevent the default action to stop from adding a newline
+                    document.getElementById('default_button').click(); // Trigger the Send button click
+                }
+            });
+
+            // put cursor in textarea
+            window.onload = function() {
+                document.getElementById('user_input').focus();
+            };
+        </script>
+
+    </body>
+</html>

@@ -1,0 +1,110 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+        <title>HM GPT Summary</title>
+    </head>
+
+    <body>
+        <nav class="navbar navbar-inverse">
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#">HM GPT Summary</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+
+            <h4>Patient ID: {{ patient_id }}
+            </h4>
+
+            {% for line in biglog %}
+                <div class="row">
+
+                    {% if line.line_type == "system" %}
+                        <!--System: {{ line.line_content }}-->
+                    {% elif line.line_type == "framing" %}
+                        <!--System: {{ line.line_content }}-->
+                        <h3>Encounter Transcript</h3>
+                    {% elif line.line_type == "reminders" %}
+                        <!--System: {{ line.line_content }}-->
+
+                    {% elif line.line_type == "user" %}
+                        Student: <em>{{ line.line_content }}</em>
+
+                    {% elif line.line_type == "assistant" %}
+                        Patient: <strong>{{ line.line_content }}</strong>
+
+                    {% elif line.line_type == "summary-statement" %}
+                        <h3>Summary of Encounter:</h3>
+                        <!--{{ line.line_content }}-->
+                    {% elif line.line_type == "summary" %}
+                        {{ line.line_content }}
+
+                    {% elif line.line_type == "expectation" %}
+                        <h3>Evaluation of Encounter</h3>
+                        <em>{{ line.line_content }}</em>
+                        <br/>
+                    {% elif line.line_type == "evaluation" %}
+                        <strong>{{ line.line_content }}</strong>
+
+                    {% elif line.line_type == "final-question" %}
+                        <h3>Meets Expectations?</h3>
+                        <!--<em>{{ line.line_content }}</em>-->
+                        <!--<br/>-->
+                    {% elif line.line_type == "final" %}
+                        <strong>{{ line.line_content }}</strong>
+
+                    {% else %}
+                        <h2>{{ line.line_content }}</h2>
+
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <br/>
+
+            <div class="row">
+                <form action="." method="POST">
+                    <textarea name="user_input" id="user_input" placeholder="Do you have any feedback about this case, the chat, or the feedback you received?" class="form-control"></textarea>
+                    <br/>
+                    <input type="submit" name="action" value="Submit Feedback" class="btn btn-success" id="default_button">
+                    <input type="submit" name="action" value="New Conversation" class="btn btn-danger">
+                    <!-- These allow requests to carry forward information about the session -->
+                    <input type="number" name="session_id" value="{{ session_id }}" /> <!--  disabled type="hidden" -->
+                    <input type="text" name="patient_id" value="{{ patient_id }}" />
+
+                </form>
+            </div>
+
+        </div><!-- /.container -->
+
+        <script>
+            // pressing enter in textarea submits the page
+            document.getElementById('user_input').addEventListener('keydown', function(event) {
+                const enterKey = 13;
+                if (event.keyCode === enterKey && !event.shiftKey) {
+                    event.preventDefault(); // Prevent the default action to stop from adding a newline
+                    document.getElementById('default_button').click(); // Trigger the Send button click
+                }
+            });
+
+            // put cursor in textarea
+            window.onload = function() {
+                document.getElementById('user_input').focus();
+            };
+
+        </script>
+
+    </body>
+</html>

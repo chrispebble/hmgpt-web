@@ -41,11 +41,11 @@
                     <input type="submit" name="action" value="Send" class="btn btn-primary" id="default_button" disabled>
                     <!--<input type="submit" name="action" value="End Interaction" class="btn btn-danger" id="end_button" disabled>-->
                     <!--Hidden values, that get passed back to the flask app-->
-                    <input type="number" name="session_id" value="{{ session_id }}" >
-                    <input type="text" name="patient_id" value="{{ patient_id }}" >
-                    <input type="text" name="case_id" value="{{ case_id }}" >
-                    <input type="text" name="user_email" id="user_email" >
-                    <input type="text" name="stage" id="stage" >
+                    <input type="number" name="session_id" value="{{ session_id }}" hidden>
+                    <input type="text" name="patient_id" value="{{ patient_id }}" hidden>
+                    <input type="text" name="case_id" value="{{ case_id }}" hidden>
+                    <input type="text" name="user_email" id="user_email" hidden>
+                    <input type="text" name="stage" id="stage" hidden>
                 </form>
             </div>
         </div><!-- /.container -->

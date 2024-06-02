@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Chat Log for Session: {{ session_id }}</h1>
+    <h2>User ID: {{user_id}} </h2>
+    <div>
+        {{ transcript | safe }}
+    </div>
+</body>
+</html>

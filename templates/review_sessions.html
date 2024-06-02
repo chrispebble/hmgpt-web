@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Review Sessions</title>
+</head>
+<body>
+    <h1>Session Review</h1>
+    <ul>
+        {% for session in sessions %}
+        <li><a href="https://hmgpt-chrispebble.pythonanywhere.com/review/{{ session[0] }}">Session {{ session[0] }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

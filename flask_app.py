@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, exists, desc
 from openai import OpenAI
 import yaml
 import random
@@ -86,9 +86,9 @@ def get_transcript(chatlog):
     transcript = ""
     for line in chatlog:
         if line.line_type == "user":
-            transcript += "Student: " + line.line_content + "\n\n"
+            transcript += "<p><b>Student</b>: " + line.line_content + "</p>"
         elif line.line_type == "assistant":
-            transcript += "Patient: " + line.line_content + "\n\n"
+            transcript += "<p style='color:grey;'><b>Patient</b>: " + line.line_content + "</p>"
 
     return transcript
 
@@ -129,33 +129,34 @@ def index():
     # --- NEW CONVERSATION ---
 
     if request.method == "GET":
+        # get the next session id by adding  one to the last (max) session id
         max_sid = db.session.query(func.max(ChatLog.session_id)).scalar()
         curr_sid = max_sid + 1
 
         # Randomly choose a patient from the default file
         pt = get_patient()
+
         # add the patient framing to the database
         new_entry = ChatLog(session_id=curr_sid, line_type="framing", line_content=pt['framing'])
         db.session.add(new_entry)
 
-        # add the patient framing to the database
+        # add the patient reminders to the database
         new_entry = ChatLog(session_id=curr_sid, line_type="reminders", line_content=pt['reminders'])
         db.session.add(new_entry)
 
+        # commit those DB changes
         db.session.commit()
 
+        # Show the main page
         return render_template("main_page.html",
                                 session_id=curr_sid,
                                 patient_id=pt['id'],
                                 patient_intro=pt['intro'],
                                 chatlog=[])
 
-    # REDIRECT REQUESTS TO CREATE NEW CONVERSATION to "/"
-    if request.form["action"] == "New Conversation":
-        return redirect(url_for('index'))
-
 
     # --- RECEIVED INPUT FOR CONVERSATION ---
+
     if request.form["action"] == "Send":
 
         # get the session id, patient_id
@@ -180,14 +181,15 @@ def index():
 
         # send the entire conversation to openai to get the next response
         response = client.chat.completions.create(model=gpt_model, messages=talk_hx, temperature=our_temp)
-        # get the reply (only the 0th element actually exists)
+
+        # extract the reply (only the 0th element actually exists)
         reply = response.choices[0].message.content
 
         # add the ChatGPT reply to database
         new_entry = ChatLog(session_id=curr_sid, line_type="assistant", line_content=reply)
         db.session.add(new_entry)
 
-        # now commit all changes
+        # now commit all DB changes
         db.session.commit()
 
         # only display user's messages and chatgpt replies
@@ -203,139 +205,38 @@ def index():
                                 patient_intro=pt['intro'],
                                 chatlog=chats)
 
-    # --- STUDENT DONE WITH CONVERSATION ---
-    if request.form["action"] == "Grade":
 
-        # Get OpenAI Client
-        client = get_client()
+    # --- DONE WITH CONVERSATION ---
 
-        # get the session id, patient_id
-        curr_sid = request.form["session_id"]
-        patient_id = request.form["patient_id"]
-        # get the patient associated with this id
-        pt = get_this_patient(patient_id)
-
-        # -----------------------------------------------------------------------------
-        # --- Summarize the interaction
-        # -----------------------------------------------------------------------------
-
-        # get the current conversation so far
-        chatlog = ChatLog.query.filter_by(session_id=curr_sid).all()
-        # compile entire conversation into a talk_hx
-        transcript = get_transcript(chatlog)
-
-        # create request to summarize the transcript
-        sum_statement = "Summarize this interaction between a student and patient."
-
-        # add summary-statement to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="summary-statement", line_content=sum_statement )
-        db.session.add(new_entry)
-
-        # format for request
-        sum_statement = [{"role": "system", "content": sum_statement}]
-
-        # turn transcript into gpt format
-        transcript = [{"role": "user", "content": transcript }]
-
-        # create query
-        query = sum_statement + transcript
-
-        # send the entire conversation to openai to get the next response
-        response = client.chat.completions.create(model=gpt_model, messages=query, temperature=our_temp)
-        # get the reply (only the 0th element actually exists)
-        gpt_summary = response.choices[0].message.content
-
-        # add the ChatGPT reply to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="summary", line_content=gpt_summary)
-        db.session.add(new_entry)
-
-        # turn it into gpt format
-        gpt_summary = [{"role": "assistant", "content": gpt_summary}]
-
-        # -----------------------------------------------------------------------------
-        # --- Compare the interaction to the goal interaction
-        # -----------------------------------------------------------------------------
-
-        eval_goal = pt['goal'] + "\nHow did the student do at meeting these goals?"
-
-        # add expectation statement to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="expectation", line_content=pt['goal'] )
-        db.session.add(new_entry)
-
-        # turn it into a request
-        eval_goal = [{"role": "user", "content": eval_goal}]
-
-        # create the query
-        eval_statement = [{"role": "system", "content": "You are an instructor, evaluating an interaction between a student and a patient."}]
-        query = eval_statement + transcript + gpt_summary + eval_goal
-
-        # ask chatGPT
-        response = client.chat.completions.create(model=gpt_model,
-                                                    messages=query,
-                                                    temperature=our_temp)
-        evaluation = response.choices[0].message.content
-
-        # add comparison to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="evaluation", line_content=evaluation)
-        db.session.add(new_entry)
-
-        # turn it into gpt format
-        evaluation = [{"role": "assistant", "content": evaluation}]
-
-        # -----------------------------------------------------------------------------
-        # --- How could the student improve next time
-        # -----------------------------------------------------------------------------
-
-        final_question = pt['goal'] + "\nDid the student meet every one of these goals?  Just say 'Yes' or 'No'."
-
-        # add question to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="final-question", line_content=final_question)
-        db.session.add(new_entry)
-
-        # format response for next query
-        final_question = [{"role": "user", "content": final_question}]
-
-        # create the query
-        query = eval_statement + transcript + gpt_summary + final_question
-
-        # ask chatGPT
-        response = client.chat.completions.create(model=gpt_model,
-                                                    messages=query,
-                                                    temperature=our_temp)
-        final = response.choices[0].message.content
-
-        # add final response
-        new_entry = ChatLog(session_id=curr_sid, line_type="final", line_content=final)
-        db.session.add(new_entry)
-
-        # commit all changes
-        db.session.commit()
-
-        # pull back the curtain and show the entire conversation
-        everything = ChatLog.query.filter_by(session_id=curr_sid).all()
-
-        # now redirect to the summary page
-        return render_template("summary_page.html",
-                                session_id=curr_sid,
-                                patient_id=patient_id,
-                                patient_intro=pt['intro'],
-                                biglog=everything)
+    if request.form["action"] == "End Interaction":
+        return redirect(url_for('index'))
 
 
 
-    # --- RECEIVED INPUT FOR FEEDBACK ---
-    if request.form["action"] == "Submit Feedback":
+# --- REVIEW PREVIOUS SESSIONS -------------------------------------------------
+@app.route("/review", methods=["GET", "POST"])
+def review_sessions():
+    # Query the database for all unique session IDs that have at least one "user" line
+    # todo: this doesn't work...
+    subquery = exists().where(
+        ChatLog.session_id == ChatLog.session_id,
+        ChatLog.line_type == 'user'
+    )
 
-        # get the session id, patient_id, response
-        curr_sid = request.form["session_id"]
-        patient_id = request.form["patient_id"]
-        response = request.form["user_input"]
+    # Query to find all distinct session_ids that meet the subquery condition
+    sessions = (ChatLog.query
+                .with_entities(ChatLog.session_id)
+                .filter(subquery)
+                .distinct()
+                .order_by(desc(ChatLog.session_id))
+                .all())
 
-        # store the feedback in the database
-        new_entry = ChatLog(session_id=curr_sid, line_type="feedback", line_content=response)
-        db.session.add(new_entry)
-        db.session.commit()
+    return render_template("review_sessions.html", sessions=sessions)
 
-        # render the final page
-        return render_template("done.html")
+@app.route("/review/<int:session_id>", methods=["GET"])
+def view_session(session_id):
+    # get the current conversation
+    chatlog = ChatLog.query.filter_by(session_id=session_id).all()
+    transcript = get_transcript(chatlog)
+    return render_template("view_session.html", transcript=transcript, session_id=session_id, user_id=chatlog[0].user_id)
 

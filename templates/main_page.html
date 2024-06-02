@@ -6,6 +6,18 @@
 
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
         <title>HM GPT</title>
+
+        <style>
+            .clicked {
+                color: #ccc; /* Light grey color */
+            }
+            .clicked:after {
+                content: ' \2713'; /* Unicode checkmark */
+                color: green;
+                font-weight: bolder;
+            }
+        </style>
+
     </head>
 
     <body>
@@ -25,51 +37,87 @@
 
         <div class="container">
 
-            <h3>{{ patient_intro }}</h3>
+            <h3>Learning and Assessment Plan</h3>
+            User: {{ user_email }}
 
-            {% for line in chatlog %}
-                <div class="row">
-                    {% if line.line_type == "assistant" %}
-                        <strong>{{ line.line_content }}</strong>
-                    {% else %}
-                        <em>{{ line.line_content }}</em>
-                    {% endif %}
-                </div>
-            {% endfor %}
+            <br><br>
+            <h4>Links to the Clinical Standard Staff Protocols:</h4>
+            <ul>
+                <li><a href="https://drive.google.com/file/d/16gpIkUPnAlq_zcaRA1xSrp_zz4MPuWMM/view?usp=drive_link" target="_blank">Adult Cold Algorithm</a></li>
+                <li><a href="https://drive.google.com/file/d/16qVc_7vbnlZ4o2kPu9H3phcgz1EXwGbR/view?usp=drive_link" target="_blank">Sore Throat Algorithm</a></li>
+                <li><a href="https://drive.google.com/file/d/16cK6_M3PdKTpAjMqgLg_Eeh91JIlvLzE/view?usp=drive_link" target="_blank">Pediatric Cold Algorithm</a></li>
+                <li><a href="https://drive.google.com/file/d/16VlogUQJptT_u7NYurvNhqez5gADoat7/view?usp=drive_link" target="_blank">Dysuria Algorithm</a></li>
+                <li><a href="https://drive.google.com/file/d/16itTgNq1t7hQh_X8eLImYXJvSEy8eJeV/view?usp=drive_link" target="_blank">Pregnancy Algorithm</a></li>
+            </ul>
 
-            <br/>
+            <br>
+            <h4>Before doing any training, try to work through these cases:</h4>
 
-            <div class="row">
-                <form action="." method="POST">
-                    <textarea name="user_input" id="user_input" placeholder="What do you say next?" class="form-control" type=submit></textarea>
-                    <br/>
-                    <!--<input type="submit" class="btn btn-success" value="Send">-->
-                    <input type="submit" name="action" value="Send" class="btn btn-primary" id="default_button">
-                    <input type="submit" name="action" value="End Interaction" class="btn btn-danger">
+            <ul id="preTrainingCases">
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 1</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 2</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 3</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 4</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 5</a></li>
+            </ul>
 
-                    <!-- These allow requests to carry forward information about the session -->
-                    <input type="number" name="session_id" value="{{ session_id }}" />
-                    <input type="text" name="patient_id" value="{{ patient_id }}" />
-                </form>
-            </div>
+            <br>
+            <h4>Now let's learn!</h4>
+            <a href="https://youtu.be/oMhIswNe7Yw?si=KXj1J4Ms-E0I8wSB" target="_blank">Link to training program</a>
+
+            <br><br>
+            <h4>Now that you've done the training, let's try some more cases:</h4>
+            <ul id="postTrainingCases">
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 6</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 7</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 8</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 9</a></li>
+                <li><a href="" target="_blank" onclick="markAsClicked(this)">Case 10</a></li>
+
+            </ul>
+
+            <br>
+            <h3>Thank you!</h3>
+            Link to post-research survey
+
+            <script>
+                function markAsClicked(link) {
+                    link.classList.add('clicked');
+                }
+
+
+                function setRandomCaseLinks() {
+
+                    const preLinks = document.querySelectorAll('#preTrainingCases a');
+                    const postLinks = document.querySelectorAll('#postTrainingCases a');
+
+                    caseLen = preLinks.length // Assume pre and post are the same size!
+
+                    // Create an array of length 5 with random 0s and 1s
+                    let randomPreArray = Array.from({ length: caseLen }, () => Math.floor(Math.random() * 2));
+                    // Create the inverse array where 0s become 1s and 1s become 0s
+                    let inversePostArray = randomPreArray.map(value => value === 0 ? 1 : 0);
+
+                    // Create an array of length 5 that starts at 1 and increments by 2
+                    let sequenceArray = Array.from({ length: caseLen }, (_, index) => 1 + index * 2);
+
+                    // Iterate through each preLink and adjust href based on sequencePreArray and randomPreArray
+                    preLinks.forEach((link, index) => {
+                        const caseNumber = sequenceArray[index] + randomPreArray[index];
+                        link.href = `https://hmgpt-chrispebble.pythonanywhere.com/case/${caseNumber}?user_email={{user_email}}&stage=pre`;
+                    });
+
+                    // Handle postLinks
+                    postLinks.forEach((link, index) => {
+                        const caseNumber = sequenceArray[index] + inversePostArray[index];
+                        link.href = `https://hmgpt-chrispebble.pythonanywhere.com/case/${caseNumber}?user_email={{user_email}}&stage=post`;
+                    });
+
+                }
+
+                window.onload = setRandomCaseLinks;
+            </script>
 
         </div><!-- /.container -->
-
-        <script>
-            // pressing enter in textarea submits the page
-            document.getElementById('user_input').addEventListener('keydown', function(event) {
-                const enterKey = 13;
-                if (event.keyCode === enterKey && !event.shiftKey) {
-                    event.preventDefault(); // Prevent the default action to stop from adding a newline
-                    document.getElementById('default_button').click(); // Trigger the Send button click
-                }
-            });
-
-            // put cursor in textarea
-            window.onload = function() {
-                document.getElementById('user_input').focus();
-            };
-        </script>
-
     </body>
 </html>

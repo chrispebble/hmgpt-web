@@ -8,7 +8,11 @@
     <h1>Session Review</h1>
     <ul>
         {% for session in sessions %}
-        <li><a href="https://hmgpt-chrispebble.pythonanywhere.com/review/{{ session[0] }}">Session {{ session[0] }}</a></li>
+        <li>
+            <a href="https://hmgpt-chrispebble.pythonanywhere.com/review/{{ session.session_id }}">
+                Session {{ session.session_id }} - User: {{ session.user_id }} - Patient: {{ session.patient_id }} - Stage: {{ session.stage }}
+            </a>
+        </li>
         {% endfor %}
     </ul>
 </body>

@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
 </head>
 <body>
-    <h1>Chat Log for Session: {{ session_id }}</h1>
-    <h2>User ID: {{user_id}} </h2>
+    <a href="https://hmgpt-chrispebble.pythonanywhere.com/review">&nbsp←←← Back to the list</a>
+    <br><br>
+
+    <h3>Session: {{ session_id }}</h1>
+    <h2>User: {{user_id}} </h2>
+    <h2>Patient: {{patient_id}} </h2>
+    <h2>Stage: {{stage}} </h2>
+    <br><br>
     <div>
         {{ transcript | safe }}
     </div>

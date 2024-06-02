@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" crossorigin="anonymous">
+        <title>HM GPT</title>
+    </head>
+    <body>
+        <nav class="navbar navbar-inverse">
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span the "icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#">HM GPT</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <h3>{{ patient_intro }}</h3>
+            {% for line in chatlog %}
+            <div class="row">
+                {% if line.line_type == "assistant" %}
+                <strong>{{ line.line_content }}</strong>
+                {% else %}
+                <em>{{ line.line_content }}</em>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <br/>
+            <div class="row">
+                <form action="/case_continue" method="POST">
+                    <textarea name="user_input" id="user_input" placeholder="What do you say next?" class="form-control"></textarea>
+                    <br/>
+                    <input type="submit" name="action" value="Send" class="btn btn-primary" id="default_button" disabled>
+                    <input type="button" value="End Interaction" class="btn btn-danger" id="end_button">
+                    <!-- Hidden values, that get passed back to the flask app -->
+                    <input type="number" name="session_id" value="{{ session_id }}">
+                    <input type="text" name="patient_id" value="{{ patient_id }}">
+                    <input type="text" name="case_id" value="{{ case_id }}">
+                    <input type="text" name="user_email" value="{{ user_email }}">
+                    <input type="text" name="stage" value="{{ stage }}">
+                </form>
+            </div>
+            <div class="row">
+                <p id="closeMessage" style="display: none; color: red;">You may close this tab now and return to the main page.</p>
+            </div>
+        </div><!-- /.container -->
+
+        <script>
+            const userInput = document.getElementById('user_input');
+            const sendButton = document.getElementById('default_button');
+            const endButton = document.getElementById('end_button');
+            const closeMessage = document.getElementById('closeMessage');
+
+            // Function to toggle button states based on textarea content
+            function toggleButtons() {
+                const isEmpty = !userInput.value.trim();
+                sendButton.disabled = isEmpty;
+                endButton.disabled = !isEmpty;
+            }
+
+            // Monitor textarea for changes
+            userInput.addEventListener('input', toggleButtons);
+
+            // Handle the enter key in the textarea to submit the form
+            userInput.addEventListener('keydown', function(event) {
+                const enterKey = 13;
+                if (event.keyCode === enterKey && !event.shiftKey) {
+                    event.preventDefault(); // Prevent default to stop from adding a newline
+                    if (!sendButton.disabled) {
+                        sendButton.click(); // Trigger the Send button click if not disabled
+                    }
+                }
+            });
+
+            // Add event listener to close the tab or show a message
+            endButton.addEventListener('click', function() {
+                try {
+                    window.close();
+                    setTimeout(function() {
+                        if (!window.closed) {
+                            closeMessage.style.display = 'block'; // Show the message if the window is still open
+                        }
+                    }, 100);
+                } catch (e) {
+                    closeMessage.style.display = 'block'; // Show the message if closing the window fails
+                }
+            });
+
+            // Focus the textarea and check initial button states on page load
+            window.onload = function() {
+                userInput.focus();
+                toggleButtons(); // Check initial state to set buttons appropriately
+            };
+        </script>
+    </body>
+</html>

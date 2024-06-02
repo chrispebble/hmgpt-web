@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, or_, exists, desc
+from sqlalchemy import func, or_, desc
 from openai import OpenAI
 import yaml
 import random
@@ -15,6 +15,10 @@ app.config["DEBUG"] = True
 patientdata_filename = "/home/chrispebble/hmgpt/patient-beta.yaml"
 gpt_model = "gpt-3.5-turbo"
 our_temp = 1.0
+
+
+for rule in app.url_map.iter_rules():
+    print(rule)
 
 # -----------------------------------------------------------------------------
 # --- Function definitions
@@ -60,7 +64,9 @@ def get_this_patient(patient_id, patients_filename=patientdata_filename):
     with open(patients_filename, "r") as file:
         patients = list(yaml.safe_load_all(file))
     for p in patients:
-        if p['id'] == patient_id:
+        print(type(p['id']))
+        print(type(patient_id))
+        if int(p['id']) is int(patient_id):
             return p
     return None
 
@@ -117,43 +123,62 @@ class ChatLog(db.Model):
     user_id = db.Column(db.String(254))              # user id (e-mail)
     line_type = db.Column(db.String(100))
     line_content = db.Column(db.String(4096))
+    patient_id = db.Column(db.Integer)
+    stage = db.Column(db.String(10))
 
 
 # --- GET, POST methods --------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    # Get OpenAI Client
-    client = get_client()
+    if request.method == "GET":
+        # add code here to collect the user email
+        return render_template("index.html")
+
+    if request.form["action"] == "Start":
+        # get the session id, patient_id
+        user_email = request.form["user_email"]
+        user_email = user_email.strip();
+        return render_template("main_page.html",
+                               user_email=user_email)
+
+
+# --- CASE START PAGE --------------------------------------------------------
+@app.get("/case/<int:case_id>")
+def case_get(case_id):
 
     # --- NEW CONVERSATION ---
 
-    if request.method == "GET":
-        # get the next session id by adding  one to the last (max) session id
-        max_sid = db.session.query(func.max(ChatLog.session_id)).scalar()
+    # get the next session id by adding  one to the last (max) session id
+    max_sid = db.session.query(func.max(ChatLog.session_id)).scalar()
+    # curr_sid = max_sid + 1
+
+    # If the database is empty and max_sid is None, start with session_id 1
+    if max_sid is None:
+        curr_sid = 1
+    else:
         curr_sid = max_sid + 1
 
-        # Randomly choose a patient from the default file
-        pt = get_patient()
+    # Load the patient case indicated by case_id
+    pt = get_this_patient(case_id)
 
-        # add the patient framing to the database
-        new_entry = ChatLog(session_id=curr_sid, line_type="framing", line_content=pt['framing'])
-        db.session.add(new_entry)
+    # Show the main page
+    return render_template("case_page.html",
+                            session_id=curr_sid,
+                            patient_id=pt['id'],
+                            case_id=case_id,
+                            patient_intro=pt['intro'],
+                            chatlog=[])
+                            # user_email is passed in the url query string
+                            # pre/post is passed in the url query string
 
-        # add the patient reminders to the database
-        new_entry = ChatLog(session_id=curr_sid, line_type="reminders", line_content=pt['reminders'])
-        db.session.add(new_entry)
 
-        # commit those DB changes
-        db.session.commit()
+# --- CASE CONTINUE PAGE --------------------------------------------------------
+@app.post("/case_continue") #, methods=["POST"])
+def show_case_continue():
 
-        # Show the main page
-        return render_template("main_page.html",
-                                session_id=curr_sid,
-                                patient_id=pt['id'],
-                                patient_intro=pt['intro'],
-                                chatlog=[])
-
+    # Get OpenAI Client
+    client = get_client()
 
     # --- RECEIVED INPUT FOR CONVERSATION ---
 
@@ -162,6 +187,9 @@ def index():
         # get the session id, patient_id
         curr_sid = request.form["session_id"]
         patient_id = request.form["patient_id"]
+        user_email = request.form["user_email"]
+        case_id = request.form["case_id"]
+        stage = request.form["stage"]
 
         # get the patient associated with this id
         pt = get_this_patient(patient_id)
@@ -173,7 +201,12 @@ def index():
         next_line = request.form["user_input"]
 
         # add the new line of conversation to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="user", line_content=next_line)
+        new_entry = ChatLog(user_id=user_email,
+                            session_id=curr_sid,
+                            patient_id=int(patient_id),
+                            stage=stage,
+                            line_type="user",
+                            line_content=next_line)
         db.session.add(new_entry)
 
         # compile entire conversation into a talk_hx
@@ -186,7 +219,12 @@ def index():
         reply = response.choices[0].message.content
 
         # add the ChatGPT reply to database
-        new_entry = ChatLog(session_id=curr_sid, line_type="assistant", line_content=reply)
+        new_entry = ChatLog(user_id=user_email,
+                            session_id=curr_sid,
+                            patient_id=int(patient_id),
+                            stage=stage,
+                            line_type="assistant",
+                            line_content=reply)
         db.session.add(new_entry)
 
         # now commit all DB changes
@@ -199,44 +237,41 @@ def index():
                                         ChatLog.line_type == "assistant")).all()
 
         # render the new page
-        return render_template("main_page.html",
+        return render_template("case_continue.html",
                                 session_id=curr_sid,
+                                user_email=user_email,
                                 patient_id=patient_id,
+                                case_id=case_id,
+                                stage=stage,
                                 patient_intro=pt['intro'],
                                 chatlog=chats)
 
 
-    # --- DONE WITH CONVERSATION ---
-
-    if request.form["action"] == "End Interaction":
-        return redirect(url_for('index'))
-
-
 
 # --- REVIEW PREVIOUS SESSIONS -------------------------------------------------
-@app.route("/review", methods=["GET", "POST"])
+@app.get("/review") #, methods=["GET"])
 def review_sessions():
-    # Query the database for all unique session IDs that have at least one "user" line
-    # todo: this doesn't work...
-    subquery = exists().where(
-        ChatLog.session_id == ChatLog.session_id,
-        ChatLog.line_type == 'user'
-    )
 
-    # Query to find all distinct session_ids that meet the subquery condition
+    # only display user's messages and chatgpt replies
     sessions = (ChatLog.query
-                .with_entities(ChatLog.session_id)
-                .filter(subquery)
-                .distinct()
-                .order_by(desc(ChatLog.session_id))
-                .all())
+                         .with_entities(ChatLog.session_id, ChatLog.user_id, ChatLog.stage, ChatLog.patient_id)
+                         .filter(ChatLog.line_type == "user")
+                         .distinct()
+                         .order_by(desc(ChatLog.session_id))
+                         .all())
 
     return render_template("review_sessions.html", sessions=sessions)
 
-@app.route("/review/<int:session_id>", methods=["GET"])
+
+@app.get("/review/<int:session_id>") #, methods=["GET"])
 def view_session(session_id):
     # get the current conversation
     chatlog = ChatLog.query.filter_by(session_id=session_id).all()
     transcript = get_transcript(chatlog)
-    return render_template("view_session.html", transcript=transcript, session_id=session_id, user_id=chatlog[0].user_id)
+    return render_template("view_session.html",
+                           transcript=transcript,
+                           session_id=session_id,
+                           user_id=chatlog[0].user_id,
+                           stage=chatlog[0].stage,
+                           patient_id=chatlog[0].patient_id)
 
